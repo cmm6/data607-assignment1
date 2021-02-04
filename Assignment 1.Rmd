@@ -1,0 +1,100 @@
+---
+title: "Data 607 Assignment One"
+author: "Claire Meyer"
+date: "1/30/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This document looks at FiveThirtyEight's Women's World Cup Predictions from 2019. This data was sourced from **[here](https://github.com/fivethirtyeight/data/tree/master/womens-world-cup-2019)**, and is discussed in **[this article](https://fivethirtyeight.com/features/how-our-2019-womens-world-cup-predictions-work/)**.
+
+## Libraries
+First we import the needed libraries. 
+
+```{r libs}
+library(dplyr)
+library(devtools)
+library(RCurl)
+library(ggplot2)
+```
+
+## Getting the Data
+Then we import the data, reading a CSV from Github. 
+
+```{r import file}
+x <- getURL("http://raw.githubusercontent.com/cmm6/data607-assignment1/main/wwc_forecasts.csv",.opts=curlOptions(followlocation = TRUE)) 
+y <- read.csv(text = x)
+```
+
+## Exploring and Cleaning Up the Data
+The first column pulls in special characters, so we need to rename it for readability. We also want to rename a couple unclear columns to be more straightforward, and get rid of a couple columns we will not be focusing on.   
+
+```{r clean up}
+# Explore the dataset
+head(y)
+# Rename the first column, without having to copy the special characters directly
+colnames(y)[1] <- "forecast_timestamp"
+
+# Confirm the change
+names(y)
+
+# Update global_o and global_d to more descriptive names
+y <- y %>%
+  rename(offense_rating = global_o)
+y <- y %>%
+  rename(defense_rating = global_d)
+# Confirm the change
+names(y)
+
+```
+## Investigate the data
+I'd like to understand the ratio of offense_rating to defense_rating, and where most teams fall, and compare the ratio to the winners in their group. 
+
+```{r ratio}
+y <- y %>%
+  mutate(offense_defense_ratio = offense_rating / defense_rating)
+
+hist(y$offense_defense_ratio, 
+     main="Histogram of All Teams' Offensive/Defensive Score Ratio", 
+     xlab="Offensive Defensive Ratio")
+```
+```{r group_winners}
+group_winners <- y %>% 
+  filter(group_1 == 1) %>% 
+  select(offense_rating,
+         defense_rating,
+         offense_defense_ratio,
+         team,
+         spi,
+         make_final)
+
+hist(group_winners$offense_defense_ratio, 
+     main="Histogram of Group Winners' Offensive/Defensive Score Ratio",
+     xlab="Offensive Defensive Ratio")
+```
+I'd like to plot this ratio against the SPI score for all and group winners. Per the FiveThirtyEight article, this is essentially the team quality as determined by FiveThirty Eight, and we can layer with the likelihood to make the final. I also wanted to play around with ggplot. 
+
+```{r ratio_plot}
+# playing with  ggplot inputs from textbook
+scatterplot <- ggplot(y, aes(x=spi, y=offense_defense_ratio)) + geom_point(aes(color=make_final))
+
+scatterplot + ggtitle("SPI and Offensive/Defensive Ratio - All") + xlab("SPI") + ylab("Offensive Defensive Ratio")
+```
+
+
+```{r winners_ratio_plot}
+scatterplot <- ggplot(group_winners, aes(x=spi, y=offense_defense_ratio)) + geom_point(aes(color=make_final))
+
+scatterplot + ggtitle("SPI and Offensive/Defensive Ratio - Group Winners") + xlab("SPI") + ylab("Offensive Defensive Ratio")
+```
+
+
+## Conclusions
+This quick analysis would seem to suggest some relationship between stronger-than-defense offense and success, though it is less clear as early losers are weeded out. As a next step, one could incorporate other World Cup predictions to get more data from group winners. I would also be curious how this compares to Men's predictions. 
